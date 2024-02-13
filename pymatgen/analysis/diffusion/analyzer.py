@@ -282,6 +282,7 @@ class DiffusionAnalyzer(MSONable):
             msd_c_range_components = np.zeros((*dt.shape, 3))
 
             for i, n in enumerate(timesteps):
+                print(i)
                 if not smoothed:
                     dx = dc[:, i : i + 1, :]
                     dcomponents = dc[:, i : i + 1, :]
@@ -303,6 +304,8 @@ class DiffusionAnalyzer(MSONable):
                     indices_c_range = []
                     if not c_range_include_edge:
                         for index in indices:
+                            print(index)
+                            # print(structures[0])
                             if any(
                                 lower < structures[i][index].c < upper
                                 and lower < structures[i + 1][index].c < upper
@@ -708,6 +711,7 @@ class DiffusionAnalyzer(MSONable):
             specie,
             temperature,
             time_step,
+            structures=structures,
             step_skip=step_skip,
             lattices=lattices,
             **kwargs,
