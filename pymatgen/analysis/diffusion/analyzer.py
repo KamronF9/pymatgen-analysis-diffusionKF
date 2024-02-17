@@ -282,7 +282,6 @@ class DiffusionAnalyzer(MSONable):
             msd_c_range_components = np.zeros((*dt.shape, 3))
 
             for i, n in enumerate(timesteps):
-                print(i)
                 if not smoothed:
                     dx = dc[:, i : i + 1, :]
                     dcomponents = dc[:, i : i + 1, :]
@@ -304,8 +303,7 @@ class DiffusionAnalyzer(MSONable):
                     indices_c_range = []
                     if not c_range_include_edge:
                         for index in indices:
-                            print(index)
-                            # print(structures[0])
+                            # print(structures[i][index].c)
                             if any(
                                 lower < structures[i][index].c < upper
                                 and lower < structures[i + 1][index].c < upper
@@ -367,24 +365,50 @@ class DiffusionAnalyzer(MSONable):
                 ) = get_diffusivity_from_msd(msd_c_range, dt, smoothed)
                 diffusivity_c_range_components = np.zeros(3)
                 diffusivity_c_range_components_std_dev = np.zeros(3)
-                (
-                    diffusivity_c_range_components[i],
-                    diffusivity_c_range_components_std_dev[i],
-                ) = (
-                    np.array(
-                        get_diffusivity_from_msd(
-                            msd_c_range_components[:, i], dt, smoothed
+                for i in range(3):
+                    (
+                        diffusivity_c_range_components[i],
+                        diffusivity_c_range_components_std_dev[i],
+                    ) = (
+                        np.array(
+                            get_diffusivity_from_msd(
+                                msd_c_range_components[:, i], dt, smoothed
+                            )
                         )
+                        * 3
                     )
-                    * 3
-                )
 
                 self.diffusivity_c_range_components = diffusivity_c_range_components
                 self.diffusivity_c_range_components_std_dev = (
                     diffusivity_c_range_components_std_dev
                 )
+                
+                
+                # indList = []
+                
+                if type(indices_c_range) is list:
+                    lenInd = len(indices_c_range)
+                else:
+                    lenInd = 0
+                    print(indC)
 
-                n_specie_c_range = np.average([len(i) for i in indices_c_range])
+                # if isinstance(indices_c_range,list):
+                #     # print(indices_c_range)
+                #     for indC in indices_c_range:
+                #         try:
+                #             lenInd = len(indC)
+                #         except:
+                #             lenInd = 0
+                #             print(indC)
+                # else:
+                #     lenInd = 0
+                
+                # indList.append(lenInd)
+
+                # [len(i) for i in indices_c_range]
+                # n_specie_c_range = np.average(indList)
+                n_specie_c_range = lenInd
+                # n_specie_c_range = np.average([len(i) for i in indices_c_range])
                 vol_c_range = np.sum(
                     [
                         max(min(upper, 1), 0) - max(min(lower, 1), 0)
