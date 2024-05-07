@@ -234,6 +234,7 @@ class DiffusionAnalyzer(MSONable):
                 indices.append(i)
             else:
                 framework_indices.append(i)
+        # print(self.disp.shape)
         if self.disp.shape[1] < 2:
             self.diffusivity = 0.0
             self.conductivity = 0.0
@@ -242,10 +243,19 @@ class DiffusionAnalyzer(MSONable):
             self.max_framework_displacement = 0
         else:
             framework_disp = self.disp[framework_indices]
+            # print((np.average(framework_disp, axis=0)).shape) # 40,3
             drift = np.average(framework_disp, axis=0)[None, :, :]
+            # print(framework_indices)
+            # print(drift)
+            
 
+            
             # drift corrected position
             dc = self.disp - drift
+            # dc = self.disp # HACK
+            # print(dc[-1])
+            # print(self.disp[-1])
+            # sys.exit(1)
 
             nions, nsteps, dim = dc.shape
 
@@ -266,7 +276,7 @@ class DiffusionAnalyzer(MSONable):
                 timesteps = np.arange(
                     min_dt, max_dt, max(int((max_dt - min_dt) / 200), 1)
                 )
-
+            # print(timesteps)
             dt = timesteps * self.time_step * self.step_skip
 
             # calculate the smoothed msd values
@@ -294,7 +304,9 @@ class DiffusionAnalyzer(MSONable):
 
                 # Get msd
                 sq_disp = dx**2
+                # print(sq_disp.shape) # at,frames (30->1), 3
                 sq_disp_ions[:, i] = np.average(np.sum(sq_disp, axis=2), axis=1)
+                # print(sq_disp_ions.shape) # at, frames
                 msd[i] = np.average(sq_disp_ions[:, i][indices])
                 msd_components[i] = np.average(dcomponents[indices] ** 2, axis=(0, 1))
 
@@ -390,7 +402,7 @@ class DiffusionAnalyzer(MSONable):
                     lenInd = len(indices_c_range)
                 else:
                     lenInd = 0
-                    print(indC)
+                    # print(indC)
 
                 # if isinstance(indices_c_range,list):
                 #     # print(indices_c_range)
@@ -698,11 +710,20 @@ class DiffusionAnalyzer(MSONable):
             **kwargs: kwargs supported by the :class:`DiffusionAnalyzer`_.
                 Examples include smoothed, min_obs, avg_nsteps.
         """
+        pCart = []
         p, lattices = [], []
         for i, s in enumerate(structures):
+            
+            if i==7:
+                1
+                # print('s[6579]',s[6579].coords)
+                # print('s[6579].frac_coords',s[6579].frac_coords)
+                # print(np.array(s[6579].frac_coords)[:, None])
             if i == 0:
                 structure = s
             p.append(np.array(s.frac_coords)[:, None])
+            # pCart.append(np.array(s.coords)[:, None])
+            pCart.append(s.cart_coords)
             lattices.append(s.lattice.matrix)
         if initial_structure is not None:
             p.insert(0, np.array(initial_structure.frac_coords)[:, None])
@@ -711,30 +732,69 @@ class DiffusionAnalyzer(MSONable):
             p.insert(0, p[0])
             lattices.insert(0, lattices[0])
 
-        p = np.concatenate(p, axis=1)
-        dp = p[:, 1:] - p[:, :-1]
-        dp = dp - np.round(dp)
-        f_disp = np.cumsum(dp, axis=1)
+        # print(lattices[0]) #
+        pCart = np.stack(pCart)
+        ps = np.concatenate(p, axis=1)
+        # print(p.shape) # ats, frames, 3
+        dp = ps[:, 1:] - ps[:, :-1]
+        # check 
+        # print(p[-1,-1],p[-1,-2],dp[-1,-1]) # ok
+        # print(np.mean(dp,axis=0)) # displacement all atoms
+        # print(np.mean(dp,axis=1)) # displacement
+        # dp = dp - np.round(dp) # if >0.5 then sub off - wouldn't this make more negative
+        dp -= np.floor(0.5+dp) #minimum image convention our method seems same
+        # print(dp) # displacement
+        f_disp = np.cumsum(dp, axis=1)  # HACK removing this
+        # print(dp[-1,-1], f_disp[-1,-1]-f_disp[-1,-2]) # OK
+        # print(np.mean(f_disp,axis=0)) # displacement all atoms - x > y > z
+        # print(f_disp)
         c_disp = []
+        # print(np.array(lattices[-1])[0])
+        # for i in dp: # HACK
         for i in f_disp:
             c_disp.append([np.dot(d, m) for d, m in zip(i, lattices[1:])])
         disp = np.array(c_disp)
-
+        # print(f_disp[-1,-1], disp[-1,-1]) # OK
+        # print(disp.shape) # at, frames, 3
+        # print(np.mean(disp,axis=0)) # displacement all atoms
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.plot(disp[:,-1]) # final cum disp
+        plt.savefig('dispHist.png')
+        dispXsorted = np.argsort(disp[:,-1,0])
+        # print(dispXsorted)
+        maxDispIdx = dispXsorted[0]
+        # print(structures[maxDispIdx].specie.symbol) not work
+        # print(structures[dispXsorted[:3]].specie.symbol)
+        
+        # site.specie.symbol
+        plt.figure()
+        plt.plot(disp[maxDispIdx,:])
+        plt.savefig('dispVtime.png')
+        plt.figure()
+        plt.plot(ps[maxDispIdx,:])
+        plt.savefig('coordsVtime.png')
+        plt.figure()
+        plt.plot(pCart[:,maxDispIdx,0])
+        plt.savefig('cartCoordsVtime.png')
+        # print(ps[maxDispIdx,:,0])
         # If is NVT-AIMD, clear lattice data.
         lattices = (
             np.array([lattices[0]])
             if np.array_equal(lattices[0], lattices[-1])
             else np.array(lattices)
         )
+        # print(lattices)
         if initial_disp is not None:
             disp += initial_disp[:, None, :]
+        # print(disp[:,-1])
 
         return cls(
-            structure,
-            disp,
-            specie,
-            temperature,
-            time_step,
+            structure=structure,
+            displacements=disp,
+            specie=specie,
+            temperature=temperature,
+            time_step=time_step,
             structures=structures,
             step_skip=step_skip,
             lattices=lattices,
