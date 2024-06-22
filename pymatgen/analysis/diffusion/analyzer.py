@@ -34,6 +34,8 @@ from pymatgen.core.structure import Structure
 from pymatgen.io.vasp.outputs import Vasprun
 from pymatgen.util.coord import pbc_diff
 
+import pandas as pd
+
 __author__ = "Will Richards, Shyue Ping Ong"
 __version__ = "0.2"
 __maintainer__ = "Will Richards"
@@ -390,6 +392,8 @@ class DiffusionAnalyzer(MSONable):
                         * 3
                     )
 
+                self.msd_c_range = msd_c_range
+                self.msd_c_range_components = msd_c_range_components
                 self.diffusivity_c_range_components = diffusivity_c_range_components
                 self.diffusivity_c_range_components_std_dev = (
                     diffusivity_c_range_components_std_dev
@@ -594,6 +598,8 @@ class DiffusionAnalyzer(MSONable):
         """
         from pymatgen.util.plotting import pretty_plot
 
+        df = [] # dataframe for plot
+
         plt = pretty_plot(12, 8)
         if np.max(self.dt) > 100000:
             plot_dt = self.dt / 1000
@@ -618,6 +624,18 @@ class DiffusionAnalyzer(MSONable):
         elif mode == "mscd":
             plt.plot(plot_dt, self.mscd, "r")
             plt.legend(["Overall"], loc=2, prop={"size": 20})
+        if mode == "ranges":
+            # print(self.msd_c_range_components)
+            # print(np.shape(self.msd_c_range_components)) # timesteps,3
+            # print(self.msd_c_range)
+            # print(np.shape(self.msd_c_range)) # timesteps
+            plt.plot(plot_dt, self.msd_c_range, "k")
+            plt.plot(plot_dt, self.msd_c_range_components[:, 0], "r")
+            plt.plot(plot_dt, self.msd_c_range_components[:, 1], "g")
+            plt.plot(plot_dt, self.msd_c_range_components[:, 2], "b")
+            plt.legend(["Overall", "a", "b", "c"], loc=2, prop={"size": 20})
+            # save data for later
+            df = pd.DataFrame({'dt':plot_dt, 'msd_c':self.msd_c_range})
         else:
             # Handle default / invalid mode case
             plt.plot(plot_dt, self.msd, "k")
@@ -632,7 +650,7 @@ class DiffusionAnalyzer(MSONable):
         else:
             plt.ylabel("MSD ($\\AA^2$)")
         plt.tight_layout()
-        return plt
+        return plt, df
 
     def plot_msd(self, mode="default"):
         """
@@ -761,6 +779,7 @@ class DiffusionAnalyzer(MSONable):
         plt.figure()
         plt.plot(disp[:,-1]) # final cum disp
         plt.savefig('dispHist.png')
+        plt.close()
         dispXsorted = np.argsort(disp[:,-1,0])
         # print(dispXsorted)
         maxDispIdx = dispXsorted[0]
@@ -771,12 +790,15 @@ class DiffusionAnalyzer(MSONable):
         plt.figure()
         plt.plot(disp[maxDispIdx,:])
         plt.savefig('dispVtime.png')
+        plt.close()
         plt.figure()
         plt.plot(ps[maxDispIdx,:])
         plt.savefig('coordsVtime.png')
+        plt.close()
         plt.figure()
         plt.plot(pCart[:,maxDispIdx,0])
         plt.savefig('cartCoordsVtime.png')
+        plt.close()
         # print(ps[maxDispIdx,:,0])
         # If is NVT-AIMD, clear lattice data.
         lattices = (
