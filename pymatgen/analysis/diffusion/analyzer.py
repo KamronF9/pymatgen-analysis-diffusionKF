@@ -264,7 +264,8 @@ class DiffusionAnalyzer(MSONable):
             self.indices = indices
 
             if not smoothed:
-                timesteps = np.arange(0, nsteps)
+                # timesteps = np.arange(0, nsteps) # orig but get an issue with c ranges
+                timesteps = np.arange(0, nsteps-1)
             elif smoothed == "constant":
                 if nsteps <= avg_nsteps:
                     raise ValueError("Not enough data to calculate diffusivity")
@@ -316,13 +317,37 @@ class DiffusionAnalyzer(MSONable):
                 if c_ranges:
                     indices_c_range = []
                     if not c_range_include_edge:
+                        # print(len(structures))
                         for index in indices:
+                            # print('i', i)
                             # print(structures[i][index].c)
+                            # print(structures[i+1][index].c)
+                            # print('i index',i, index)
+                            # print(np.array(structures).shape) # frames,atoms
+                            # print(np.array(structures)[:,index]) # atom site object
+
+                            checkAllFrames = False
+                            if checkAllFrames:
+                                # check if all frames have the atom to include in calculation
+                                zValuesEachIndex = []
+                                for structure in structures:
+                                    zValuesEachIndex.append(structure[index].c)
+                                zValuesEachIndexNP = np.array(zValuesEachIndex)
+                                # print(zValuesEachIndex)
+                                # print(c_ranges) # [[lower,upper]]
+                                [[lower,upper]] = c_ranges
+                                # print((lower < zValuesEachIndexNP)) # list of bool
+                                # print((lower < zValuesEachIndexNP) & (zValuesEachIndexNP < upper)) # list of bool len of frames
+                                if ((lower < zValuesEachIndexNP) & (zValuesEachIndexNP < upper)).all():
+                                    indices_c_range.append(index)
+
+                            check if current or next have particle
                             if any(
                                 lower < structures[i][index].c < upper
-                                and lower < structures[i + 1][index].c < upper
+                                and lower < structures[i + 1][index].c < upper  
                                 for (lower, upper) in c_ranges
                             ):
+                            # was and ****should this be an or - either way no improvement in noise
                                 indices_c_range.append(index)
                     else:
                         for index in indices:
