@@ -341,7 +341,7 @@ class DiffusionAnalyzer(MSONable):
                                 if ((lower < zValuesEachIndexNP) & (zValuesEachIndexNP < upper)).all():
                                     indices_c_range.append(index)
 
-                            check if current or next have particle
+                            # check if current or next have particle
                             if any(
                                 lower < structures[i][index].c < upper
                                 and lower < structures[i + 1][index].c < upper  
@@ -649,7 +649,7 @@ class DiffusionAnalyzer(MSONable):
         elif mode == "mscd":
             plt.plot(plot_dt, self.mscd, "r")
             plt.legend(["Overall"], loc=2, prop={"size": 20})
-        if mode == "ranges":
+        elif mode == "ranges":
             # print(self.msd_c_range_components)
             # print(np.shape(self.msd_c_range_components)) # timesteps,3
             # print(self.msd_c_range)
@@ -661,6 +661,19 @@ class DiffusionAnalyzer(MSONable):
             plt.legend(["Overall", "a", "b", "c"], loc=2, prop={"size": 20})
             # save data for later
             df = pd.DataFrame({'dt':plot_dt, 'msd_c':self.msd_c_range})
+        elif mode == "slope":
+            # print(self.msd_c_range_components)
+            # print(np.shape(self.msd_c_range_components)) # timesteps,3
+            # print(self.msd_c_range)
+            # print(np.shape(self.msd_c_range)) # timesteps
+            # print(len(plot_dt), len(self.msd_c_range))
+            plt.plot(plot_dt, self.msd_c_range/plot_dt, "k")
+            plt.plot(plot_dt, self.msd_c_range_components[:, 0]/plot_dt, "r")
+            plt.plot(plot_dt, self.msd_c_range_components[:, 1]/plot_dt, "g")
+            plt.plot(plot_dt, self.msd_c_range_components[:, 2]/plot_dt, "b")
+            plt.legend(["Overall", "a", "b", "c"], loc=2, prop={"size": 20})
+            # save data for later
+            df = pd.DataFrame({'dt':plot_dt, 'msd_c':self.msd_c_range/plot_dt})
         else:
             # Handle default / invalid mode case
             plt.plot(plot_dt, self.msd, "k")
@@ -672,6 +685,8 @@ class DiffusionAnalyzer(MSONable):
         plt.xlabel(f"Timestep ({unit})")
         if mode == "mscd":
             plt.ylabel("MSCD ($\\AA^2$)")
+        elif mode == "slope":
+            plt.ylabel(f"MSD/time ($\\AA^2$/{unit})")
         else:
             plt.ylabel("MSD ($\\AA^2$)")
         plt.tight_layout()
