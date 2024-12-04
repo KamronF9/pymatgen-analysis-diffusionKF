@@ -326,15 +326,15 @@ class DiffusionAnalyzer(MSONable):
                             # print(np.array(structures).shape) # frames,atoms
                             # print(np.array(structures)[:,index]) # atom site object
 
-                            checkAllFrames = False
+                            checkAllFrames = False # default False
                             if checkAllFrames:
                                 # check if all frames have the atom to include in calculation
                                 zValuesEachIndex = []
                                 for structure in structures:
                                     zValuesEachIndex.append(structure[index].c)
-                                zValuesEachIndexNP = np.array(zValuesEachIndex)
+                                # zValuesEachIndexNP = np.array(zValuesEachIndex)
                                 # print(zValuesEachIndex)
-                                # print(c_ranges) # [[lower,upper]]
+                                print(c_ranges) # [[lower,upper]]
                                 [[lower,upper]] = c_ranges
                                 # print((lower < zValuesEachIndexNP)) # list of bool
                                 # print((lower < zValuesEachIndexNP) & (zValuesEachIndexNP < upper)) # list of bool len of frames
@@ -349,7 +349,13 @@ class DiffusionAnalyzer(MSONable):
                             ):
                             # was and ****should this be an or - either way no improvement in noise
                                 indices_c_range.append(index)
+                            # else:
+                            # for insights on if c_range is missing items
+                            #     print('Not including this in c_range:')
+                            #     print(structures[i][index].c)
+                            
                     else:
+                        # include edges
                         for index in indices:
                             if any(
                                 lower <= structures[i][index].c <= upper
